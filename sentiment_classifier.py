@@ -1,9 +1,8 @@
 #this model will be a simple dnn which extract features from
 # bags of words and timestamps to classify comments by success
 #no model savings as
-import sqlite3
 import tensorflow as tf
-import random
+import string
 import nltk
 import sqlite3
 import traceback
@@ -13,6 +12,7 @@ import random
 import datetime
 import numpy as np
 import pandas as pd
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,7 +29,12 @@ num_of_n_for_ngram = 5
 subreddit_list = []
 
 n_classes = 2
-model_name = "/tmp/sentiment_model.ckpt"
+model_name = "sentiment_model_5L_final.ckpt"
+current_directory = os.getcwd()
+final_directory = os.path.join(current_directory, r'models')
+if not os.path.exists(final_directory):
+   os.makedirs(final_directory)
+model_location = os.path.join(final_directory, model_name)
 
 class DNN_sentiment_classifier():
     def __init__(self):
@@ -41,7 +46,7 @@ class DNN_sentiment_classifier():
         self.optimizer, self.cost, self.x, self.y, self.sess, self.prediction, self.saver = self.build_neural_network()
 
         if self.model_needs_retraining:
-            self.train_nn(50)
+            self.train_nn(5)
 
     def run_text(self, text):
         input_features = self.create_input_features(text)
@@ -54,11 +59,14 @@ class DNN_sentiment_classifier():
         self.save_model()
 
     def save_model(self):
-        save_path = self.saver.save(self.sess, model_name)
+        save_path = self.saver.save(self.sess, model_location)
         self.save_ngrams()
         print("Model saved in file: %s" % save_path)
 
     def load_model(self, saver, sess):
+
+        if not os.path.exists(final_directory):
+           os.makedirs(final_directory)
         saver.restore(sess, model_name)
         self.load_ngrams()
 
@@ -115,7 +123,9 @@ class DNN_sentiment_classifier():
         inputs = get_input()
         random.shuffle(inputs)
         train_x, train_y, test_x, test_y = self.create_feature_sets_and_labels(inputs)
+        del inputs[:]
 
+        logger.info('training size: {0}, testing size: {1}'.format(len(train_x), len(test_x)))
         logger.info('starting training')
         for epoch in range(hm_epochs):
             epoch_loss = 0
@@ -137,7 +147,7 @@ class DNN_sentiment_classifier():
         print('Accuracy:', accuracy_float)
         return sess, prediction, x, y
 
-    def create_feature_sets_and_labels(self, inputs, test_size = .05):
+    def create_feature_sets_and_labels(self, inputs, test_size = .01):
         random.shuffle(inputs)
         feature_list = []
 
@@ -176,7 +186,10 @@ class DNN_sentiment_classifier():
         res = get_input()
         comments = []
         for r in res:
-             comments.append(tuple(remove_stopwords(nltk.tokenize.word_tokenize(r[0].lower()))))
+            formatted_word = ' '.join(remove_stopwords(nltk.tokenize.word_tokenize(r[0].lower())))
+            exclude = set(string.punctuation)
+            formatted_word = ''.join(ch for ch in formatted_word if ch not in exclude)
+            comments.append(tuple(remove_stopwords(nltk.tokenize.word_tokenize(formatted_word))))
         for comment in comments:
             for n in range(1, max_n):
                 if len(comment) >= n:
@@ -229,6 +242,8 @@ def get_text_features(text, n_gram_dict):
     word_features = [0 for i in range(len(n_gram_dict.keys())*len(n_gram_dict[1]))]
     index = 0
     formatted_word = ' '.join(remove_stopwords(nltk.tokenize.word_tokenize(text.lower())))
+    exclude = set(string.punctuation)
+    formatted_word = ''.join(ch for ch in formatted_word if ch not in exclude)
     for n in n_gram_dict.keys():
         for i in n_gram_dict[n]:
             if ' '.join(i) in formatted_word:
@@ -261,17 +276,13 @@ def get_dict_keys_sorted_by_values(d, number_to_return, reverse = True):
 def get_input():
     inputs = []
     df = pd.read_csv('SAD.csv', error_bad_lines=False)
-    count = 0
     for index, row in df.iterrows():
         inputs.append([row[3], row[1]])
-        count+= 1
-        if count > 100:
-            break
+
     return inputs
 
 #testing
 if __name__ == '__main__':
     sentiment_classifier = DNN_sentiment_classifier()
-    sentiment_classifier.train_nn(10)
 
 

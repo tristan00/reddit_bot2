@@ -7,7 +7,7 @@ import logging
 import random
 import sqlite3
 import time
-
+import string
 import nltk
 import numpy as np
 import tensorflow as tf
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 #TODO: store ngrams in db to allow model storing
 
 nodes_per_layer = 2000
-max_results_to_analyze = 100
+max_results_to_analyze = 100000
 get_newest_results = True #if i cut out some results, this will only get newer results keeping my bot more updated in the meta
 stop_word_list = list(nltk.corpus.stopwords.words('english'))
 num_of_score_buckets = 10
@@ -36,7 +36,7 @@ class DNN_comment_classifier():
         self.border_values = [] # any num above this
         self.n_gram_orders_dict = {}
         #self.input_width = self.get_input_size()
-        self.input_width = 715
+        self.input_width = 729
         self.optimizer, self.cost, self.x, self.y, self.sess, self.prediction = self.build_neural_network()
         self.s_classifier = DNN_sentiment_classifier()
 
@@ -94,6 +94,7 @@ class DNN_comment_classifier():
         inputs = get_db_input()
         random.shuffle(inputs)
         train_x, train_y, test_x, test_y = self.create_feature_sets_and_labels(inputs)
+        del inputs[:]
 
         logger.info('starting training')
         for epoch in range(hm_epochs):
@@ -115,7 +116,7 @@ class DNN_comment_classifier():
         print('Accuracy:', accuracy_float)
         return sess, prediction, x, y
 
-    def create_feature_sets_and_labels(self, inputs, test_size = .05):
+    def create_feature_sets_and_labels(self, inputs, test_size = .01):
         random.shuffle(inputs)
         feature_list = []
 
@@ -172,9 +173,20 @@ class DNN_comment_classifier():
         res = get_db_input()
         comments = []
         for r in res:
-            comments.append(remove_stopwords(nltk.tokenize.word_tokenize(r[5].lower())))# parent
-            comments.append(remove_stopwords(nltk.tokenize.word_tokenize(r[14].lower())))#child
-            comments.append(remove_stopwords(nltk.tokenize.word_tokenize(r[21].lower())))#post title
+            formatted_word = ' '.join(remove_stopwords(nltk.tokenize.word_tokenize(r[5].lower())))
+            exclude = set(string.punctuation)
+            formatted_word = ''.join(ch for ch in formatted_word if ch not in exclude)
+            comments.append(remove_stopwords(nltk.tokenize.word_tokenize(formatted_word)))# parent
+
+            formatted_word = ' '.join(remove_stopwords(nltk.tokenize.word_tokenize(r[14].lower())))
+            exclude = set(string.punctuation)
+            formatted_word = ''.join(ch for ch in formatted_word if ch not in exclude)
+            comments.append(remove_stopwords(nltk.tokenize.word_tokenize(formatted_word)))#child
+
+            formatted_word = ' '.join(remove_stopwords(nltk.tokenize.word_tokenize(r[21].lower())))
+            exclude = set(string.punctuation)
+            formatted_word = ''.join(ch for ch in formatted_word if ch not in exclude)
+            comments.append(remove_stopwords(nltk.tokenize.word_tokenize(formatted_word)))#post title
             score_list.append(r[15])
         for comment in comments:
             for n in range(1, max_n):
@@ -209,6 +221,8 @@ def get_text_features(text, n_gram_dict):
     word_features = np.zeros(len(n_gram_dict.keys())*len(n_gram_dict[1])) #[0 for i in range(len(n_gram_dict.keys())*len(n_gram_dict[1]))]
     index = 0
     formatted_word = ' '.join(remove_stopwords(nltk.tokenize.word_tokenize(text.lower())))
+    exclude = set(string.punctuation)
+    formatted_word = ''.join(ch for ch in formatted_word if ch not in exclude)
     for n in n_gram_dict.keys():
         for i in n_gram_dict[n]:
             if ' '.join(i) in formatted_word:
@@ -270,6 +284,6 @@ def get_subreddit_list():
 if __name__ == '__main__':
     dnn = DNN_comment_classifier()
     print('here')
-    dnn.train_nn(50)
+    dnn.train_nn(5)
 
 

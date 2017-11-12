@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 subreddit_names_to_follow = ['memes', 'catsstandingup', 'wholesomememes',
                              'youdontsurf', 'nsfw', 'blackpeopletwitter',
                              'overwatch', 'dankmemes', 'me_irl', 'nottheonion',
-                             'iamverysmart', 'pcmasterrace', 'atheism',
-                             'totallyhuman', 'globaloffensive', 'tifu',
-                             'dota2', 'trees', 'politics', 'science', 'jokes'
-                             'gaming', 'futurology', 'wtf', 'programming',
+                             'iamverysmart', 'pcmasterrace', 'atheism', 'comedycemetary',
+                             'totallyhuman', 'globaloffensive', 'tifu', 'actlikeyoubelong',
+                             'dota2', 'trees', 'politics', 'science', 'jokes',
+                             'gaming', 'futurology', 'wtf', 'programming', '4chan'
                              'creepy', 'music', '4chan', 'madlads', 'imgoingtohellforthis',
-                             'nsfw_gif', 'watchpeopledie', 'rule34']
+                             'nsfw_gif', 'watchpeopledie', 'rule34', 'quityourbullship']
 random.shuffle(subreddit_names_to_follow)
 user_name = None
 
@@ -157,14 +157,9 @@ def set_up():
 
 def main():
     #wipe_db()
+    reddit_agent = set_up()
+    read_data(reddit_agent)
 
-    for i in range(100):
-        try:
-            reddit_agent = set_up()
-            read_data(reddit_agent)
-        except:
-            traceback.print_exc()
-            time.sleep(10)
 
 if __name__ == '__main__':
     main()
